@@ -1,0 +1,33 @@
+name: open62541_bindings
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.3.0-82.0.dev
+
+# Add regular dependencies here.
+dependencies:
+  ffi: ^2.1.2
+  # path: ^1.8.0
+
+dev_dependencies:
+  ffigen: ^12.0.0
+  lints: ^4.0.0
+  test: ^1.24.0
+ffigen:
+  output: lib/src/generated/open62541_bindings.dart
+  name: open62541
+  description: Low level bindings to open62541
+  headers:
+    entry-points:
+      - 'open62541_build/open62541.h'
+  functions:
+    symbol-address:
+      include:
+        - '*' # Do this to expose all function pointers.
+  compiler-opts:
+    - '-Iopen62541_build/install/include/'
+    - '-I/lib/clang/17/include/'
+    - '-Wno-nullability-completeness'
+    - '-Wno-expansion-to-defined'
