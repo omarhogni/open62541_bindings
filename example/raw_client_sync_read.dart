@@ -8,7 +8,7 @@ import 'package:open62541_bindings/src/generated/open62541_bindings.dart';
 //
 // import 'client.dart';
 //
-// late open62541 lib;
+late open62541 lib;
 //
 void stateCallback(Pointer<UA_Client> client, int channelState, int sessionState, int connectStatus) {
   switch (channelState) {
@@ -43,24 +43,33 @@ void deleteCallback(Pointer<UA_Client> client, int subscriptionId, Pointer<Void>
 }
 
 void handlerCurrentTimeChanged(Pointer<UA_Client> client, int subId, Pointer<Void> subContext, int monId, Pointer<Void> monContext, Pointer<UA_DataValue> value) {
-  print('Current time changed');
-  // if (lib.UA_Variant_hasScalarType(value.ref.value, UA_TYPES[UA_TYPES_DATETIME])) {}
+  Pointer<UA_Variant> variantPointer = malloc<UA_Variant>();
+  variantPointer.ref = value.ref.value;
+
+  // TODO: This is not working, know it is a datetime
+  // Pointer<UA_DataType> datetPointer = Pointer.fromAddress(lib.UA_TYPES.address + (UA_TYPES_DATETIME * sizeOf<UA_DataType>().toInt()));
+  // if (lib.UA_Variant_hasScalarType(variantPointer, datetPointer)) {
+  int val = variantPointer.ref.data.cast<UA_DateTime>().value;
+  UA_DateTimeStruct dts = lib.UA_DateTime_toStruct(val);
+  DateTime dt = DateTime(dts.year, dts.month, dts.day, dts.hour, dts.min, dts.sec, dts.milliSec);
+  print(dt);
+  //}
 }
 
-void subscriptionInactivityCallback(Pointer<UA_Client> client, Pointer<UA_UInt32> subId, Pointer<Void> subContext, Pointer<UA_UInt32> monId, Pointer<Void> monContext, UA_StatusCode status) {
-  print('Subscription inactivity callback ${subId.value}');
+void subscriptionInactivityCallback(Pointer<UA_Client> client, int subId, Pointer<Void> subContext) {
+  print('Subscription inactivity callback $subId');
 }
 
 /// Checks if you are awesome. Spoiler: you are.
 int main() {
-  open62541 lib = open62541(DynamicLibrary.open('open62541_build/bin/libopen62541.so'));
+  lib = open62541(DynamicLibrary.open('open62541_build/bin/libopen62541.so'));
   Pointer<UA_Client> client = lib.UA_Client_new();
   Pointer<UA_ClientConfig> clientConfigPointer = lib.UA_Client_getConfig(client);
   lib.UA_ClientConfig_setDefault(clientConfigPointer);
 
-  clientConfigPointer.ref.stateCallback = Pointer.fromFunction<Void Function(Pointer<UA_Client>, Int32, Int32, UA_StatusCode)>(stateCallback);
+  // clientConfigPointer.ref.stateCallback = Pointer.fromFunction<Void Function(Pointer<UA_Client>, Int32, Int32, UA_StatusCode)>(stateCallback);
 
-  //clientConfig.ref.subscriptionInactivityCallback = Pointer.fromFunction(subscriptionInactivityCallback);
+  clientConfigPointer.ref.subscriptionInactivityCallback = Pointer.fromFunction<Void Function(Pointer<UA_Client>, UA_UInt32, Pointer<Void>)>(subscriptionInactivityCallback);
 
   // Pointer<Pointer<UA_EndpointDescription>> endpointDescription = nullptr;
   String endpointUrl = 'opc.tcp://localhost:4840';
@@ -95,8 +104,8 @@ int main() {
     sleep(Duration(milliseconds: 200));
   }
 
-  print('Read complete, now try subscription');
-  print('CURRENTLY NOT WORKING');
+  print('Read complete!');
+  print('Subscription!');
 
   //TODO: handlerCurrentTimeChanged is not being called. No errors. Need to investigate
   Pointer<UA_CreateSubscriptionRequest> request = malloc<UA_CreateSubscriptionRequest>();
@@ -114,12 +123,14 @@ int main() {
     print("Subscription created id: ${response.subscriptionId}");
   } else {
     print("Failed to create subscription");
+    lib.UA_Client_delete(client);
     exit(-1);
   }
   Pointer<UA_MonitoredItemCreateRequest> monRequest = malloc<UA_MonitoredItemCreateRequest>();
   lib.UA_MonitoredItemCreateRequest_init(monRequest);
   monRequest.ref.itemToMonitor.nodeId = currentTimeNode;
   monRequest.ref.itemToMonitor.attributeId = UA_AttributeId.UA_ATTRIBUTEID_VALUE;
+  monRequest.ref.monitoringMode = UA_MonitoringMode.UA_MONITORINGMODE_REPORTING;
   monRequest.ref.requestedParameters.samplingInterval = 250;
   monRequest.ref.requestedParameters.discardOldest = true;
   monRequest.ref.requestedParameters.queueSize = 1;

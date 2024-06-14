@@ -25,7 +25,7 @@ ffigen:
   functions:
     symbol-address:
       include:
-        - '*' # Do this to expose all function pointers.
+        - 'UA_*' # Do this to expose all function pointers.
   compiler-opts:
     - '-Iopen62541_build/install/include/'
     - '-I/lib/clang/17/include/'

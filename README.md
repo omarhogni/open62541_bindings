@@ -2,7 +2,6 @@
 ## Currently working
 
 There is a raw example where read and subscribe are implemented.
-currently only the read is functional.
 
 ## Notes
 
@@ -26,8 +25,26 @@ Run this from the open62541_build directory
 cmake ../open62541/ -DBUILD_SHARED_LIBS=ON -DUA_ENABLE_INLINABLE_EXPORT=ON -DCMAKE_INSTALL_PREFIX=install -DUA_BUILD_EXAMPLES=OFF -DUA_BUILD_UNIT_TESTS=OFF -DUA_ENABLE_AMALGAMATION=ON -DUA_MULTITHREADING=0
 make
 ```
+Optionally you can set the log_level inside open62541
+```bash
+cmake ../open62541/ -DBUILD_SHARED_LIBS=ON -DUA_ENABLE_INLINABLE_EXPORT=ON -DCMAKE_INSTALL_PREFIX=install -DUA_BUILD_EXAMPLES=OFF -DUA_BUILD_UNIT_TESTS=OFF -DUA_ENABLE_AMALGAMATION=ON -DUA_MULTITHREADING=0 -DUA_LOGLEVEL=100
+make
+```
+Where the levels are defined as follows
+```
+600: Fatal
+500: Error
+400: Warning
+300: Info
+200: Debug
+100: Trace
+```
 
-Now modify the open62541_build/open62541.h file, remove the bitfields from lines 23244-23250 and replace with a single byte.
+Now modify the open62541_build/open62541.h file, remove the bitfields from 
+- UA_DiagnosticsInfo
+- UA_DataValue
+
+and replace with a single byte.
 In my experimentation I have added a static_assert and the size remains the same. I am not sure if this
 will cause issues in the future but seems to generate a much larger section of the library.
 Example of change
