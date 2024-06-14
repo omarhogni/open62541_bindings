@@ -1,6 +1,7 @@
 // TODO: Put public facing types in this file.
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 import 'package:open62541_bindings/src/generated/open62541_bindings.dart';
@@ -62,7 +63,9 @@ void subscriptionInactivityCallback(Pointer<UA_Client> client, int subId, Pointe
 
 /// Checks if you are awesome. Spoiler: you are.
 int main() {
-  lib = open62541(DynamicLibrary.open('open62541_build/bin/libopen62541.so'));
+  var location = Isolate.resolvePackageUriSync(Uri.parse('package:open62541_bindings/libopen62541.so'));
+  print(location);
+  lib = open62541(DynamicLibrary.open(location!.path));
   Pointer<UA_Client> client = lib.UA_Client_new();
   Pointer<UA_ClientConfig> clientConfigPointer = lib.UA_Client_getConfig(client);
   lib.UA_ClientConfig_setDefault(clientConfigPointer);

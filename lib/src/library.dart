@@ -1,23 +1,28 @@
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'generated/open62541_bindings.dart' as raw;
 
 class Open62541 {
   late raw.open62541 _lib;
-  static String _objectPath() {
+  static Uri? _objectPath() {
     var ending = 'so';
     if (Platform.isMacOS) {
       ending = 'dylib';
     } else if (Platform.isWindows) {
       ending = 'dll';
     }
-    return 'open62541_build/bin/libopen62541.$ending';
+    return Isolate.resolvePackageUriSync(Uri.parse('package:open62541_bindings/libopen62541.$ending'));
   }
 
   Open62541() {
-    _lib = raw.open62541(DynamicLibrary.open(_objectPath()));
+    var path = _objectPath();
+    if (path == null) {
+      throw Exception('Could not resolve package path');
+    }
+    _lib = raw.open62541(DynamicLibrary.open(path.path));
   }
   raw.open62541 get lib => _lib;
 }
