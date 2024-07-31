@@ -70,6 +70,9 @@ int main() {
     exit(-1);
   }
 
+  print("Starting read loop");
+
+
   // UA_NodeId currentTimeNode = lib.UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME);
   // for (int i = 0; i < 10; i++) {
   //   Pointer<UA_Variant> value = malloc<UA_Variant>();
