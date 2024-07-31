@@ -43,6 +43,8 @@ Where the levels are defined as follows
 Now modify the open62541_build/open62541.h file, remove the bitfields from 
 - UA_DiagnosticsInfo
 - UA_DataValue
+- UA_DataTypeMember
+- UA_DataType
 
 and replace with a single byte.
 In my experimentation I have added a static_assert and the size remains the same. I am not sure if this
