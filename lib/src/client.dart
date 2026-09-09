@@ -852,6 +852,19 @@ class Client implements ClientApi {
               var reference = retVal[indorderNodes[i].$1] ?? DynamicValue();
               raw.UA_Variant? value = ok ? pointers[i].ref.value : null;
 
+              // A server may legally answer Good with an EMPTY variant: "the
+              // attribute exists and carries no value" (Part 4 — asyncua does
+              // this for the DataTypeDefinition of every base DataType node;
+              // TwinCAT answers BadAttributeIdInvalid instead). An empty
+              // variant has type == NULL and data == NULL, so every case below
+              // would dereference NULL natively — a process-killing SIGSEGV,
+              // not a catchable Dart error. Treat it exactly like the
+              // tolerated BadAttributeIdInvalid above: the attribute is
+              // absent.
+              if (value != null && value.type == ffi.nullptr) {
+                continue;
+              }
+
               switch (indorderNodes[i].$2) {
                 case AttributeId.UA_ATTRIBUTEID_DESCRIPTION:
                   final description = value!.data.cast<raw.UA_LocalizedText>();
@@ -1561,7 +1574,7 @@ class Client implements ClientApi {
               controller.addError('Failed to read value, nullptr provided');
               return;
             }
-// The packed UA_DataValue flag byte. ffigen does not emit the C
+            // The packed UA_DataValue flag byte. ffigen does not emit the C
             // bitfield members individually — the generated struct ends with a
             // single `@UA_Byte() external int substitute`, which IS their
             // storage unit. Bit positions follow the declaration order in
@@ -1604,13 +1617,18 @@ class Client implements ClientApi {
               var reference = latestValues[nodeId] ?? DynamicValue();
               final ref = value.ref.value;
 
-              // A sample the server marked Bad arrives with hasValue CLEAR:
-              // there is no payload to decode, and entering the switch would
-              // dereference an empty variant. Its QUALITY is still news, so it
-              // falls through to the shared emit below with the code attached.
-              // Reachable only under [deliverBadStatus] — the default path
-              // returned above, exactly as it always has.
-              final hasNothingToDecode = isBadSample && (flags & hasValueFlag) == 0;
+              // A notification without a decodable payload must not enter the
+              // switch: every case dereferences the variant's native pointers,
+              // and an empty variant (type == NULL) turns that into a
+              // process-killing SIGSEGV. Two spec-legal shapes arrive here:
+              //  - a sample the server marked Bad, with hasValue CLEAR — its
+              //    QUALITY is still news, so it falls through to the shared
+              //    emit below with the code attached (reachable only under
+              //    [deliverBadStatus]; the default path returned above).
+              //  - a GOOD sample carrying no value ("the attribute exists and
+              //    has no value") — hasValue clear, or set around a null
+              //    variant. Both leave type == NULL, so both are checked.
+              final hasNothingToDecode = (flags & hasValueFlag) == 0 || ref.type == ffi.nullptr;
 
               if (!hasNothingToDecode) {
                 switch (attributeId) {
@@ -2160,6 +2178,13 @@ class Client implements ClientApi {
   Schema defs = {};
 
   Future<DynamicValue> _variantToValueAutoSchema(raw.UA_Variant data, [NodeId? dataTypeId]) async {
+    // An empty variant (type == NULL) has no payload and no type to probe a
+    // schema from — the deref on the next line would be a native SIGSEGV, not
+    // a catchable error. Answer the same null DynamicValue that variantToValue
+    // produces for a variant without data.
+    if (data.type == ffi.nullptr) {
+      return DynamicValue();
+    }
     var typeId = data.type.ref.typeId.toNodeId();
     if (dataTypeId != null && nodeIdToPayloadType(dataTypeId) == null) {
       if (!defs.containsKey(dataTypeId)) {
